@@ -108,3 +108,17 @@ simplification, trefoil, stdin input, and CLI timeout validation.
 
 The HOMFLY-PT formatter mirrors the `L` exponent and orders terms to match the
 existing Sage/KnotInfo-style database strings.
+
+## Citation
+
+If you use this project in academic work, please cite it as software:
+
+```bibtex
+@software{cpp_knot_indexer,
+  title        = {Pure C++ Knot Indexer},
+  author       = {{GGN-2015}},
+  year         = {2026},
+  url          = {https://github.com/GGN-2015/cpp_knot_indexer},
+  note         = {C++17 software for PD-code knot lookup using HOMFLY-PT and Khovanov invariants}
+}
+```

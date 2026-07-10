@@ -1,0 +1,130 @@
+# Modules
+
+The repository is organized as an independent C++17 project. It does not import
+Python modules from the older hybrid project and does not require SageMath at
+runtime.
+
+## Source Tree
+
+`src/knot_indexer`
+
+Main executable code. This includes PD parsing, worker process orchestration,
+HOMFLY-PT integration, Khovanov integration, data lookup, timeout handling, and
+interrupt handling.
+
+`src/che_to_coord`
+
+Standalone molecule-data-to-coordinate library. It parses molecule files with
+`Atoms` and `Bonds` sections and returns a validated ordered 3D coordinate
+cycle. This module is not linked into the main executable yet.
+
+`src/link_pd_code`
+
+Standalone 3D-coordinate-to-PD-code library derived from
+`GGN-2015/link-pd-code` under the MIT license. It supports one or more ordered
+closed polygon components. This module is not linked into the main executable
+yet.
+
+`third_party/cppkh`
+
+Vendored MIT-licensed Khovanov implementation from `GGN-2015/cppkh`.
+
+`third_party/libhomfly`
+
+Vendored public-domain HOMFLY implementation. It is compiled as C++ together
+with the main executable sources.
+
+`data`
+
+Runtime lookup data. The data folder is copied beside the built executable by
+`build.py`, but it is not embedded in the executable.
+
+`docs`
+
+Project documentation beyond the README QuickStart.
+
+## Main Indexer Components
+
+`database.*`
+
+Loads invariant-to-name maps and normalizes knot names through
+`knotname-reg`.
+
+`pd_code.*`
+
+Parses and formats PD codes, validates labels, canonicalizes label numbering,
+and provides the PD representation used by invariant workers.
+
+`homfly_backend.*`
+
+Converts parsed PD data into the form expected by the HOMFLY engine and formats
+the resulting polynomial for database lookup.
+
+`khovanov_backend.*`
+
+Connects parsed PD data to the vendored `cppkh` computation path and formats
+the resulting integral Khovanov invariant.
+
+`process_runner.*`
+
+Spawns worker processes, enforces per-worker timeout limits, captures stdout
+and stderr, and reports worker status to the main process.
+
+`runtime_control.*`
+
+Installs interrupt handlers and exposes the shared interrupted state used for
+clean `Ctrl+C` shutdown.
+
+`main.cpp`
+
+Implements the public command line, default data folder resolution, worker
+entrypoint, invariant lookup, and final stdout/stderr output contract.
+
+## Auxiliary Coordinate Modules
+
+`che_to_coord.h` and `che_to_coord.cpp`
+
+Public namespace: `cki::che_to_coord`.
+
+Important API types and functions:
+
+- `Point3`
+- `OrderedPoint`
+- `ParseOptions`
+- `ParseError`
+- `parseCoordinateLoopText`
+- `readCoordinateLoopFile`
+- `positionsOnly`
+- `formatCoordinateLoop`
+
+`link_pd_code.h` and `link_pd_code.cpp`
+
+Public namespace: `cki::link_pd_code`.
+
+Important API types and functions:
+
+- `Point3`
+- `Crossing`
+- `Component`
+- `Link`
+- `Options`
+- `ProjectionError`
+- `parseLinkCoordinateText`
+- `readLinkCoordinateFile`
+- `computePDCode`
+- `validatePDCode`
+- `formatPDCode`
+
+## Citation
+
+If you use this project in academic work, please cite it as software:
+
+```bibtex
+@software{cpp_knot_indexer,
+  title        = {Pure C++ Knot Indexer},
+  author       = {{GGN-2015}},
+  year         = {2026},
+  url          = {https://github.com/GGN-2015/cpp_knot_indexer},
+  note         = {C++17 software for PD-code knot lookup using HOMFLY-PT and Khovanov invariants}
+}
+```

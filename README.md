@@ -46,13 +46,18 @@ The target executable is written to `build/cpp_knot_indexer` or
 
 ```sh
 build/cpp_knot_indexer --pd-code "[[1,5,2,4],[3,1,4,6],[5,3,6,2]]" --timeout 60
-build/cpp_knot_indexer --pd-file pd_code.txt --timeout 60 --print-invariants
+build/cpp_knot_indexer --pd-file pd_code.txt --timeout 60 --verbose
 ```
 
 `--timeout SEC` applies independently to the Khovanov worker and the HOMFLY-PT
 worker. If one worker fails or times out, candidates are still retrieved from
 the invariant that completed. Pressing `Ctrl+C` requests a clean shutdown and
 terminates any active worker process.
+
+`--verbose` writes intermediate diagnostics to stderr, including Khovanov and
+HOMFLY-PT worker status, elapsed time, successful invariant strings, and captured
+failure or timeout details. Final candidate knot names are always written to
+stdout only, so verbose output can be redirected separately from search results.
 
 The HOMFLY-PT path rebuilds component traversal directly from the PD graph
 before calling the polynomial engine. It therefore accepts consistently

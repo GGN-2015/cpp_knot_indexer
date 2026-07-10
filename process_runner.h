@@ -12,6 +12,7 @@ struct WorkerResult {
     int exitCode = -1;
     double seconds = 0.0;
     std::string output;
+    std::string error;
 };
 
 WorkerResult runWorkerProcess(const std::filesystem::path& executable,

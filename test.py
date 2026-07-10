@@ -20,34 +20,34 @@ CASES = [
         "name": "unknot-empty-pd",
         "pd": "[]",
         "expected": "K0a1",
-        "must_contain": ["HOMFLY-PT: 1", "Khovanov: q^-1*t^0*Z[0] + q^1*t^0*Z[0]"],
+        "must_contain": ["HOMFLY-PT result: 1", "Khovanov result: q^-1*t^0*Z[0] + q^1*t^0*Z[0]"],
     },
     {
         "name": "unknot-r1-simplification",
         "pd": "[[1,2,2,1]]",
         "expected": "K0a1",
-        "must_contain": ["HOMFLY-PT: 1", "Khovanov: q^-1*t^0*Z[0] + q^1*t^0*Z[0]"],
+        "must_contain": ["HOMFLY-PT result: 1", "Khovanov result: q^-1*t^0*Z[0] + q^1*t^0*Z[0]"],
     },
     {
         "name": "trefoil",
         "pd": "[[1,5,2,4],[3,1,4,6],[5,3,6,2]]",
         "expected": "K3a1",
         "must_contain": [
-            "HOMFLY-PT: -L^4 + L^2*M^2 - 2*L^2",
-            "Khovanov: q^1*t^0*Z[0] + q^3*t^0*Z[0]",
+            "HOMFLY-PT result: -L^4 + L^2*M^2 - 2*L^2",
+            "Khovanov result: q^1*t^0*Z[0] + q^3*t^0*Z[0]",
         ],
     },
     {
         "name": "trefoil-reversed-orientation",
         "pd": "[[2,4,1,5],[4,6,3,1],[6,2,5,3]]",
         "expected": "K3a1",
-        "must_contain": ["HOMFLY-PT: -L^4 + L^2*M^2 - 2*L^2"],
+        "must_contain": ["HOMFLY-PT result: -L^4 + L^2*M^2 - 2*L^2"],
     },
     {
         "name": "trefoil-nonconsecutive-labels",
         "pd": "[[10,50,20,40],[30,10,40,60],[50,30,60,20]]",
         "expected": "K3a1",
-        "must_contain": ["HOMFLY-PT: -L^4 + L^2*M^2 - 2*L^2"],
+        "must_contain": ["HOMFLY-PT result: -L^4 + L^2*M^2 - 2*L^2"],
     },
     {
         "name": "cin-input",
@@ -90,12 +90,14 @@ def assert_case(exe: Path, case: dict[str, object]) -> None:
     if case.get("stdin"):
         proc = run([str(exe), "--timeout", "10"], stdin=pd, timeout=30)
     else:
-        proc = run([str(exe), "--pd-code", pd, "--timeout", "10", "--print-invariants"], timeout=30)
+        proc = run([str(exe), "--pd-code", pd, "--timeout", "10", "--verbose"], timeout=30)
 
     if proc.returncode != 0:
         raise AssertionError(f"{case['name']} failed with exit {proc.returncode}\nstderr:\n{proc.stderr}")
 
     stdout_lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    if "HOMFLY" in proc.stdout or "Khovanov" in proc.stdout:
+        raise AssertionError(f"{case['name']} wrote verbose diagnostics to stdout:\n{proc.stdout}")
     if expected not in stdout_lines:
         raise AssertionError(
             f"{case['name']} expected {expected!r} in stdout, got {stdout_lines!r}\nstderr:\n{proc.stderr}"

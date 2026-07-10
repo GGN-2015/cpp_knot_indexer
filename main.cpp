@@ -73,7 +73,7 @@ void usage(std::ostream& out) {
         << "  --timeout SEC       Max seconds for HOMFLY-PT and Khovanov each (0 disables timeout; default 60).\n"
         << "  --data-root PATH    Project root containing the data/ directory.\n"
         << "  --print-invariants  Print computed invariant strings to stderr.\n"
-        << "  --verbose           Print worker status to stderr.\n";
+        << "  --verbose           Print worker status, failures, and invariant strings to stderr.\n";
 }
 
 std::filesystem::path currentExecutablePath(const char* argv0) {
@@ -222,6 +222,24 @@ void printWorkerStatus(const char* name, const WorkerResult& result) {
     std::cerr << ", " << result.seconds << "s\n";
 }
 
+void printWorkerDetails(const char* name, const WorkerResult& result, bool printValue) {
+    printWorkerStatus(name, result);
+    if (result.success) {
+        if (printValue) std::cerr << name << " result: " << result.output << "\n";
+        return;
+    }
+    if (result.timedOut) {
+        std::cerr << name << " detail: timed out after " << result.seconds << "s\n";
+    } else if (result.interrupted) {
+        std::cerr << name << " detail: interrupted\n";
+    } else {
+        std::cerr << name << " detail: failed with exit code " << result.exitCode << "\n";
+    }
+    if (!result.error.empty()) {
+        std::cerr << name << " stderr:\n" << result.error << "\n";
+    }
+}
+
 int workerMain(int argc, char** argv) {
     std::string worker;
     std::filesystem::path inputPath;
@@ -279,12 +297,11 @@ int main(int argc, char** argv) {
         }
 
         if (options.verbose) {
-            hki::printWorkerStatus("Khovanov", khResult);
-            hki::printWorkerStatus("HOMFLY-PT", homResult);
-        }
-        if (options.printInvariants) {
-            std::cerr << "Khovanov: " << (khResult.success ? khResult.output : "<failed>") << "\n";
-            std::cerr << "HOMFLY-PT: " << (homResult.success ? homResult.output : "<failed>") << "\n";
+            hki::printWorkerDetails("Khovanov", khResult, true);
+            hki::printWorkerDetails("HOMFLY-PT", homResult, true);
+        } else if (options.printInvariants) {
+            std::cerr << "Khovanov result: " << (khResult.success ? khResult.output : "<failed>") << "\n";
+            std::cerr << "HOMFLY-PT result: " << (homResult.success ? homResult.output : "<failed>") << "\n";
         }
 
         if (!khResult.success && !homResult.success) {

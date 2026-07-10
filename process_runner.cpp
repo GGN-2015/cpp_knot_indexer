@@ -3,6 +3,7 @@
 #include "runtime_control.h"
 
 #include <chrono>
+#include <cstdio>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
@@ -56,12 +57,14 @@ std::filesystem::path uniqueTempPath(const char* suffix) {
 struct TempFiles {
     std::filesystem::path input;
     std::filesystem::path output;
+    std::filesystem::path error;
 
-    TempFiles() : input(uniqueTempPath(".in")), output(uniqueTempPath(".out")) {}
+    TempFiles() : input(uniqueTempPath(".in")), output(uniqueTempPath(".out")), error(uniqueTempPath(".err")) {}
     ~TempFiles() {
         std::error_code ec;
         std::filesystem::remove(input, ec);
         std::filesystem::remove(output, ec);
+        std::filesystem::remove(error, ec);
     }
 };
 
@@ -92,6 +95,7 @@ WorkerResult runProcessPlatform(const std::filesystem::path& executable,
                                 const std::string& workerName,
                                 const std::filesystem::path& input,
                                 const std::filesystem::path& output,
+                                const std::filesystem::path& error,
                                 int timeoutSeconds) {
     WorkerResult result;
     auto started = std::chrono::steady_clock::now();
@@ -104,15 +108,26 @@ WorkerResult runProcessPlatform(const std::filesystem::path& executable,
     STARTUPINFOW si{};
     PROCESS_INFORMATION pi{};
     si.cb = sizeof(si);
-    si.dwFlags = STARTF_USESHOWWINDOW;
+    si.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
     si.wShowWindow = SW_HIDE;
+
+    HANDLE stderrHandle = CreateFileW(error.wstring().c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr,
+                                      CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, nullptr);
+    if (stderrHandle == INVALID_HANDLE_VALUE) throw std::runtime_error("cannot create temporary stderr file");
+    SetHandleInformation(stderrHandle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT);
+    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+    si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+    si.hStdError = stderrHandle;
 
     std::vector<wchar_t> mutableCommand(command.begin(), command.end());
     mutableCommand.push_back(L'\0');
 
-    BOOL ok = CreateProcessW(executable.wstring().c_str(), mutableCommand.data(), nullptr, nullptr, FALSE,
+    BOOL ok = CreateProcessW(executable.wstring().c_str(), mutableCommand.data(), nullptr, nullptr, TRUE,
                              CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi);
-    if (!ok) throw std::runtime_error("CreateProcessW failed for worker");
+    if (!ok) {
+        CloseHandle(stderrHandle);
+        throw std::runtime_error("CreateProcessW failed for worker");
+    }
 
     DWORD exitCode = STILL_ACTIVE;
     const auto timeout = timeoutSeconds > 0 ? std::chrono::seconds(timeoutSeconds) : std::chrono::seconds::max();
@@ -139,11 +154,13 @@ WorkerResult runProcessPlatform(const std::filesystem::path& executable,
     WaitForSingleObject(pi.hProcess, INFINITE);
     CloseHandle(pi.hThread);
     CloseHandle(pi.hProcess);
+    CloseHandle(stderrHandle);
 
     result.exitCode = static_cast<int>(exitCode);
     result.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
     result.success = !result.timedOut && !result.interrupted && result.exitCode == 0;
     if (result.success) result.output = readFile(output);
+    result.error = readFile(error);
     return result;
 }
 
@@ -153,6 +170,7 @@ WorkerResult runProcessPlatform(const std::filesystem::path& executable,
                                 const std::string& workerName,
                                 const std::filesystem::path& input,
                                 const std::filesystem::path& output,
+                                const std::filesystem::path& error,
                                 int timeoutSeconds) {
     WorkerResult result;
     auto started = std::chrono::steady_clock::now();
@@ -163,6 +181,12 @@ WorkerResult runProcessPlatform(const std::filesystem::path& executable,
         std::string exe = executable.string();
         std::string in = input.string();
         std::string out = output.string();
+        std::string err = error.string();
+        FILE* errFile = std::fopen(err.c_str(), "wb");
+        if (errFile) {
+            dup2(fileno(errFile), STDERR_FILENO);
+            std::fclose(errFile);
+        }
         execl(exe.c_str(), exe.c_str(), "--worker", workerName.c_str(), "--input", in.c_str(), "--output", out.c_str(), static_cast<char*>(nullptr));
         _exit(127);
     }
@@ -201,6 +225,7 @@ WorkerResult runProcessPlatform(const std::filesystem::path& executable,
     result.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
     result.success = !result.timedOut && !result.interrupted && result.exitCode == 0;
     if (result.success) result.output = readFile(output);
+    result.error = readFile(error);
     return result;
 }
 
@@ -214,7 +239,7 @@ WorkerResult runWorkerProcess(const std::filesystem::path& executable,
                               int timeoutSeconds) {
     TempFiles temp;
     writeFile(temp.input, input);
-    return runProcessPlatform(executable, workerName, temp.input, temp.output, timeoutSeconds);
+    return runProcessPlatform(executable, workerName, temp.input, temp.output, temp.error, timeoutSeconds);
 }
 
 } // namespace hki

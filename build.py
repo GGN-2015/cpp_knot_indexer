@@ -16,6 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 EXE_SUFFIX = ".exe" if os.name == "nt" else ""
+SQLITE = ROOT / "third_party" / "sqlite" / "sqlite-amalgamation-3530300"
 
 TARGET_OUTPUTS = {
     "knot_indexer": "cpp_knot_indexer",
@@ -47,6 +48,10 @@ LIBHOMFLY_SOURCES = [
     "third_party/libhomfly/model.c",
     "third_party/libhomfly/order.c",
     "third_party/libhomfly/poly.c",
+]
+
+SQLITE_SOURCES = [
+    SQLITE / "sqlite3.c",
 ]
 
 
@@ -146,11 +151,12 @@ def build_flags(args: argparse.Namespace, cxx: list[str]) -> tuple[list[str], li
     flags = ["-std=c++17"]
     flags += ["-O0", "-g"] if args.debug else ["-O3", "-DNDEBUG"]
     flags += ["-DCPPKH_SHARED_LIBRARY"]
+    flags += ["-DHKI_WITH_SQLITE", "-DSQLITE_THREADSAFE=1", "-DSQLITE_OMIT_LOAD_EXTENSION"]
 
     system = platform.system().lower()
     if system == "windows":
         flags += ["-DKH_THREAD_BACKEND_WIN32", "-DNOMINMAX"]
-        link_flags: list[str] = []
+        link_flags: list[str] = ["-lws2_32"]
     else:
         flags += ["-DKH_THREAD_BACKEND_STD"]
         link_flags = ["-pthread"]
@@ -160,6 +166,7 @@ def build_flags(args: argparse.Namespace, cxx: list[str]) -> tuple[list[str], li
         "-I", str(ROOT / "src" / "che_to_coord"),
         "-I", str(ROOT / "src" / "link_pd_code"),
         "-I", str(ROOT / "third_party/libhomfly"),
+        "-I", str(SQLITE),
     ]
 
     if not args.debug:
@@ -201,6 +208,8 @@ def source_args(target: str) -> list[str]:
     if target != "knot_indexer":
         return args
 
+    args += ["-x", "c"]
+    args += [str(src) for src in SQLITE_SOURCES]
     # libhomfly is C source, but this project compiles it as C++ so it can be
     # linked in one pass with the C++ executable and the local gc.h shim.
     args += ["-x", "c++"]

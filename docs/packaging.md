@@ -104,6 +104,9 @@ The release build starts with:
 - `-O3`
 - `-DNDEBUG`
 - `-DCPPKH_SHARED_LIBRARY`
+- `-DHKI_WITH_SQLITE`
+- `-DSQLITE_THREADSAFE=1`
+- `-DSQLITE_OMIT_LOAD_EXTENSION`
 
 The script then probes platform support before adding optional flags:
 
@@ -118,6 +121,7 @@ On Windows, the build defines:
 
 - `KH_THREAD_BACKEND_WIN32`
 - `NOMINMAX`
+- links `ws2_32` for SQLite's Windows runtime dependencies
 
 On other platforms, the build defines:
 
@@ -134,8 +138,9 @@ folder already exists beside the output binary, it is removed first and then
 copied again.
 
 This keeps the executable independent from hard-coded embedded data. Users can
-replace the runtime database by passing `--data-folder PATH`, or by replacing
-the copied `data` folder beside the executable.
+replace the runtime database by passing `--data-folder PATH`, by passing
+`--sqlite-db PATH`, or by replacing the copied `data` folder beside the
+executable.
 
 ## Test Script
 

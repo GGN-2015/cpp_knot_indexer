@@ -43,6 +43,11 @@ Vendored MIT-licensed Khovanov implementation from `GGN-2015/cppkh`.
 Vendored public-domain HOMFLY implementation. It is compiled as C++ together
 with the main executable sources.
 
+`third_party/sqlite`
+
+Vendored public-domain SQLite amalgamation used by the main executable when a
+SQLite invariant data source is available.
+
 `data`
 
 Runtime lookup data. The data folder is copied beside the built executable by
@@ -58,6 +63,11 @@ Project documentation beyond the README QuickStart.
 
 Loads invariant-to-name maps and normalizes knot names through
 `knotname-reg`.
+
+`sqlite_database.hpp`
+
+Opens a read-only SQLite invariant database and queries the `invariants` table
+by HOMFLY-PT, Khovanov, or the pair of both invariants.
 
 `pd_code.hpp`
 

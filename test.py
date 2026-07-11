@@ -70,6 +70,8 @@ def run(cmd: list[str], *, stdin: str | None = None, timeout: int = 60) -> subpr
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=timeout,
     )
 
@@ -157,6 +159,96 @@ def assert_custom_data_folder(exe: Path) -> None:
         ], timeout=30)
         if bad.returncode == 0 or "invalid --data-folder" not in bad.stderr:
             raise AssertionError(f"invalid data folder should fail\nstdout={bad.stdout}\nstderr={bad.stderr}")
+
+
+def create_sqlite_invariant_db(path: Path, name: str) -> None:
+    import sqlite3
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute(
+            "CREATE TABLE invariants("
+            "name TEXT PRIMARY KEY,"
+            "canonical_pd TEXT NOT NULL,"
+            "homfly TEXT NOT NULL,"
+            "khovanov TEXT NOT NULL)"
+        )
+        conn.execute("CREATE INDEX idx_invariants_homfly ON invariants(homfly)")
+        conn.execute("CREATE INDEX idx_invariants_khovanov ON invariants(khovanov)")
+        conn.execute("CREATE INDEX idx_invariants_pair ON invariants(homfly, khovanov)")
+        conn.execute(
+            "INSERT INTO invariants(name, canonical_pd, homfly, khovanov) VALUES (?, ?, ?, ?)",
+            (
+                name,
+                str(CASES[2]["pd"]),
+                "-L^4 + L^2*M^2 - 2*L^2",
+                "not-a-khovanov-match",
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def assert_sqlite_data_source(exe: Path) -> None:
+    with tempfile.TemporaryDirectory(prefix="cki_sqlite_") as tmp:
+        tmp_path = Path(tmp)
+        data = tmp_path / "data"
+        shutil.copytree(ROOT / "data", data)
+
+        auto_db = data / "name-pd" / "PD_m_3-16.sqlite"
+        create_sqlite_invariant_db(auto_db, "SQLiteTrefoilAuto")
+        proc = run([
+            str(exe),
+            "--pd-code",
+            str(CASES[2]["pd"]),
+            "--timeout",
+            "10",
+            "--data-folder",
+            str(data),
+            "--verbose",
+        ], timeout=30)
+        if proc.returncode != 0:
+            raise AssertionError(f"sqlite auto data source failed\nstdout={proc.stdout}\nstderr={proc.stderr}")
+        stdout_lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+        if stdout_lines != ["SQLiteTrefoilAuto"]:
+            raise AssertionError(f"sqlite auto lookup returned {stdout_lines!r}\nstderr={proc.stderr}")
+        if "SQLite candidate count: 1" not in proc.stderr:
+            raise AssertionError(f"sqlite verbose diagnostics missing\nstderr={proc.stderr}")
+
+        explicit_db = tmp_path / "explicit.sqlite"
+        create_sqlite_invariant_db(explicit_db, "SQLiteTrefoilExplicit")
+        explicit = run([
+            str(exe),
+            "--pd-code",
+            str(CASES[2]["pd"]),
+            "--timeout",
+            "10",
+            "--data-folder",
+            str(data),
+            "--sqlite-db",
+            str(explicit_db),
+        ], timeout=30)
+        if explicit.returncode != 0:
+            raise AssertionError(f"explicit sqlite data source failed\nstdout={explicit.stdout}\nstderr={explicit.stderr}")
+        explicit_lines = [line.strip() for line in explicit.stdout.splitlines() if line.strip()]
+        if explicit_lines != ["SQLiteTrefoilExplicit"]:
+            raise AssertionError(f"explicit sqlite lookup returned {explicit_lines!r}\nstderr={explicit.stderr}")
+
+        missing = run([
+            str(exe),
+            "--pd-code",
+            str(CASES[2]["pd"]),
+            "--timeout",
+            "10",
+            "--data-folder",
+            str(data),
+            "--sqlite-db",
+            str(tmp_path / "missing.sqlite"),
+        ], timeout=30)
+        if missing.returncode == 0 or "invalid --sqlite-db" not in missing.stderr:
+            raise AssertionError(f"missing sqlite db should fail\nstdout={missing.stdout}\nstderr={missing.stderr}")
 
 
 def assert_missing_default_data_fails(exe: Path) -> None:
@@ -497,6 +589,8 @@ def main() -> int:
         print(f"PASS {case['name']}")
     assert_custom_data_folder(exe)
     print("PASS data-folder")
+    assert_sqlite_data_source(exe)
+    print("PASS sqlite-data-source")
     assert_missing_default_data_fails(exe)
     print("PASS missing-default-data")
     assert_timeout_degrades(exe)

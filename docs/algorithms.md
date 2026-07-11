@@ -98,6 +98,10 @@ Lookup starts three worker processes in parallel:
 - Khovanov on the original canonical PD code
 - PD-code simplification using the vendored `cpp-pd-code-simplify` backend
 
+When the user passes `--ban-simplify`, the third worker is not started. In that
+mode the lookup path computes HOMFLY-PT and Khovanov only from the original
+input PD code and never starts simplified-PD invariant workers.
+
 If simplification returns a different PD code, the main process starts
 additional HOMFLY-PT and Khovanov workers on the simplified PD code for any
 invariant type that has not already succeeded.

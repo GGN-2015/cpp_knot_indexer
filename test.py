@@ -337,6 +337,43 @@ def assert_print_invariants_includes_simplified_pd(exe: Path) -> None:
         raise AssertionError(f"print-invariants omitted simplified PD code\nstderr={proc.stderr}")
 
 
+def assert_ban_simplify(exe: Path) -> None:
+    proc = run([
+        str(exe),
+        "--pd-code",
+        "[[1,2,2,1]]",
+        "--timeout",
+        "10",
+        "--verbose",
+        "--ban-simplify",
+    ], timeout=30)
+    if proc.returncode != 0:
+        raise AssertionError(f"ban-simplify lookup failed\nstdout={proc.stdout}\nstderr={proc.stderr}")
+    stdout_lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    if "K0a1" not in stdout_lines:
+        raise AssertionError(f"ban-simplify lookup returned {stdout_lines!r}\nstderr={proc.stderr}")
+    if "Simplify: disabled by --ban-simplify" not in proc.stderr:
+        raise AssertionError(f"ban-simplify did not report disabled simplify\nstderr={proc.stderr}")
+    if "Simplify result:" in proc.stderr or "HOMFLY-PT (simplified)" in proc.stderr or "Khovanov (simplified)" in proc.stderr:
+        raise AssertionError(f"ban-simplify unexpectedly ran simplified workers\nstderr={proc.stderr}")
+
+    printed = run([
+        str(exe),
+        "--pd-code",
+        "[[1,2,2,1]]",
+        "--timeout",
+        "10",
+        "--print-invariants",
+        "--ban-simplify",
+    ], timeout=30)
+    if printed.returncode != 0:
+        raise AssertionError(f"ban-simplify print-invariants failed\nstdout={printed.stdout}\nstderr={printed.stderr}")
+    if "Khovanov result:" not in printed.stderr or "HOMFLY-PT result:" not in printed.stderr:
+        raise AssertionError(f"ban-simplify print-invariants omitted invariant output\nstderr={printed.stderr}")
+    if "Simplified PD code result:" in printed.stderr:
+        raise AssertionError(f"ban-simplify print-invariants emitted simplified PD\nstderr={printed.stderr}")
+
+
 def assert_simplify_worker(exe: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="cki_simplify_") as tmp:
         tmp_path = Path(tmp)
@@ -820,6 +857,8 @@ def main() -> int:
     print("PASS timeout-cli-contract")
     assert_print_invariants_includes_simplified_pd(exe)
     print("PASS print-invariants-simplified-pd")
+    assert_ban_simplify(exe)
+    print("PASS ban-simplify")
     assert_simplify_worker(exe)
     print("PASS simplify-worker")
     assert_auxiliary_modules(args.cxx)

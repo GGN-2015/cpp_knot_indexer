@@ -2,15 +2,20 @@
 
 ## QuickStart
 
-This is an independent C++17 code tree for looking up knots from PD codes using
-HOMFLY-PT and integral Khovanov invariants. It does not require SageMath at
-runtime.
+This is an independent C++17 code tree for looking up knots from PD codes. It
+computes HOMFLY-PT and integral Khovanov invariants in isolated worker
+processes, races them against the same invariants computed after PD-code
+simplification, and then looks up candidate knot names from external data
+files or SQLite. It does not require SageMath at runtime.
 
-Build from the repository root:
+Build everything from the repository root:
 
 ```sh
 python build.py
 ```
+
+This creates `cpp_knot_indexer`, `che_to_coord`, and `link_pd_code` under
+`build/`, and copies the external `data/` folder next to `cpp_knot_indexer`.
 
 Run a lookup:
 
@@ -30,11 +35,14 @@ Run the regression tests:
 python test.py --rebuild
 ```
 
-Detailed documentation:
+Manuals:
 
-- [Command Line](docs/command-line.md)
-- [Packaging](docs/packaging.md)
-- [Algorithms](docs/algorithms.md)
-- [Modules](docs/modules.md)
-- [che_to_coord](docs/che-to-coord.md)
-- [link_pd_code](docs/link-pd-code.md)
+- [Command Line](docs/command-line.md): user-facing options and output contract.
+- [Algorithms](docs/algorithms.md): implementation details for normalization,
+  simplification, invariant racing, lookup, and coordinate conversion.
+- [Packaging](docs/packaging.md): Python build script, compiler flags, and
+  runtime data packaging.
+- [Modules](docs/modules.md): source tree and public `.hpp` entrypoints.
+- [che_to_coord](docs/che-to-coord.md): molecule data to ordered coordinates.
+- [link_pd_code](docs/link-pd-code.md): ordered 3D coordinates to PD code.
+- [Citation](docs/modules.md#citation): BibTeX entry for academic use.

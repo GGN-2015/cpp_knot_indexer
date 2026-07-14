@@ -100,3 +100,16 @@ information.
 - [che_to_coord](docs/che-to-coord.md): molecule data to ordered coordinates.
 - [link_pd_code](docs/link-pd-code.md): ordered 3D coordinates to PD code.
 - [Citation](docs/modules.md#citation): BibTeX entry for academic use.
+
+## Citation
+
+If you use this repository in academic work, please cite it as:
+
+```bibtex
+@software{topologicalknotindexer_cpp_knot_indexer,
+  author = {{TopologicalKnotIndexer contributors}},
+  title = {{cpp\_knot\_indexer}},
+  year = {2026},
+  url = {https://github.com/TopologicalKnotIndexer/cpp_knot_indexer}
+}
+```
